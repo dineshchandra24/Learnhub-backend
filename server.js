@@ -118,7 +118,7 @@ app.use(cors({
   origin: [
     "https://learnhub-gamma-flame.vercel.app",
     "https://learnhub-gamma-flame.vercel.app/",
-    https://learnhub-backend-szlb.onrender.com,
+    "https://learnhub-backend-szlb.onrender.com",
     "http://localhost:5173"
   ],
   credentials: true,
@@ -132,6 +132,7 @@ app.use(cors({
   ],
   exposedHeaders: ['Content-Length', 'Content-Type']
 }));
+
 
 
 // ✅ ADD THESE LINES HERE (after CORS, before MongoDB connection)
