@@ -3544,6 +3544,94 @@ app.post('/api/instructor/courses', authMiddleware, instructorMiddleware, async 
   }
 });
 
+// Upload course thumbnail (instructor)
+app.post('/api/instructor/courses/:id/upload-thumbnail', 
+  authMiddleware, 
+  instructorMiddleware,
+  (req, res, next) => {
+    console.log('\n🖼️ INSTRUCTOR COURSE THUMBNAIL UPLOAD');
+    console.log('Course ID:', req.params.id);
+    console.log('Instructor:', req.user?.email);
+    next();
+  },
+  uploadImage.single('thumbnail'), 
+  async (req, res) => {
+    try {
+      const objectId = validateObjectId(req.params.id);
+      if (!objectId) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Invalid course ID format' 
+        });
+      }
+
+      const course = await Course.findById(objectId);
+      if (!course) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'Course not found' 
+        });
+      }
+
+      // ✅ Verify instructor owns this course
+      if (course.instructorId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ 
+          success: false,
+          message: 'You can only upload thumbnails for your own courses' 
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'No image file uploaded' 
+        });
+      }
+
+      // Delete old Cloudinary image if exists
+      if (course.image && course.image.includes('cloudinary.com')) {
+        try {
+          const publicIdMatch = course.image.match(/\/([^\/]+)\.(jpg|jpeg|png|webp)$/);
+          if (publicIdMatch) {
+            const oldPublicId = `learnhub-course-thumbnails/${publicIdMatch[1]}`;
+            await cloudinary.uploader.destroy(oldPublicId);
+            console.log('🗑️ Deleted old thumbnail');
+          }
+        } catch (err) {
+          console.log('⚠️ Could not delete old thumbnail:', err.message);
+        }
+      }
+
+      course.image = req.file.path;
+      course.updatedAt = Date.now();
+      await course.save();
+
+      console.log('✅ Course thumbnail updated:', req.file.path, '\n');
+
+      res.json({
+        success: true,
+        message: 'Thumbnail uploaded successfully',
+        imageUrl: req.file.path,
+        publicId: req.file.filename
+      });
+    } catch (error) {
+      console.error('❌ Upload error:', error);
+      
+      if (req.file?.filename) {
+        try {
+          await cloudinary.uploader.destroy(req.file.filename);
+        } catch (e) {}
+      }
+      
+      res.status(500).json({ 
+        success: false,
+        message: 'Error uploading thumbnail',
+        error: error.message 
+      });
+    }
+  }
+);
+
 /// Update course (instructors and admins)
 app.put('/api/instructor/courses/:id', authMiddleware, async (req, res) => {
   try {
